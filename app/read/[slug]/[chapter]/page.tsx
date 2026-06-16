@@ -1,18 +1,17 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { getChapter, getAdjacentChapters, getChaptersByNovelSlug } from "@/lib/data/chapters";
+import { getChapterMeta, getAdjacentChapters, getChaptersByNovelSlug } from "@/lib/data/chapters";
+import { generateToken } from "@/lib/chapter-token";
 import ReaderWrapper from "@/components/reader/ReaderWrapper";
 import ReaderSettings from "@/components/reader/ReaderSettings";
 import ChapterDropdown from "@/components/reader/ChapterDropdown";
-import ReadingTracker from "@/components/reader/ReadingTracker";
-import JsonLd from "@/components/seo/JsonLd";
+import ChapterContent from "@/components/reader/ChapterContent";
 import type { Metadata } from "next";
 
-export const revalidate = 86400;
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://suertetranslations.com";
-
+// No static caching — each render generates a fresh HMAC token.
+export const dynamic = "force-dynamic";
 
 interface ReadPageProps {
   params: Promise<{ slug: string; chapter: string }>;
@@ -20,25 +19,14 @@ interface ReadPageProps {
 
 export async function generateMetadata({ params }: ReadPageProps): Promise<Metadata> {
   const { slug, chapter } = await params;
-  const ch = await getChapter(slug, Number(chapter));
+  const ch = await getChapterMeta(slug, Number(chapter));
   if (!ch) return { title: "Chapter Not Found" };
   const title = `Chapter ${ch.chapter_number}: ${ch.title}`;
   const description = `Read ${title} of ${slug.replace(/-/g, " ")} on Suerte Translations.`;
   return {
     title,
     description,
-    openGraph: {
-      title,
-      description,
-      url: `${SITE_URL}/read/${slug}/${chapter}`,
-      type: "article",
-    },
-    twitter: {
-      card: "summary",
-      title,
-      description,
-    },
-    robots: { index: true, follow: true },
+    robots: { index: false, follow: false, nosnippet: true },
   };
 }
 
@@ -47,37 +35,25 @@ export default async function ReadPage({ params }: ReadPageProps) {
   const chapterNumber = Number(chapter);
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
-  const [ch, { prev, next }, allChapters] = await Promise.all([
-    getChapter(slug, chapterNumber),
+  const [ch, { prev, next }, allChapters, headerStore, { data: { user } }] = await Promise.all([
+    getChapterMeta(slug, chapterNumber),
     getAdjacentChapters(slug, chapterNumber),
     getChaptersByNovelSlug(slug),
+    headers(),
+    supabase.auth.getUser(),
   ]);
 
   if (!ch) notFound();
 
-  const paragraphs = ch.content
-    .split(/\n+/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  const ua = headerStore.get("user-agent") ?? "";
+  const ip = headerStore.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+  const token = generateToken(slug, chapterNumber, ua, ip);
 
   const chapterList = allChapters.map((c) => ({
     chapter_number: c.chapter_number,
     title: c.title,
   }));
-
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: `Chapter ${ch.chapter_number}: ${ch.title}`,
-    name: ch.title,
-    url: `${SITE_URL}/read/${slug}/${chapterNumber}`,
-    isPartOf: { "@type": "Book", name: slug.replace(/-/g, " "), url: `${SITE_URL}/series/${slug}` },
-    wordCount: ch.word_count ?? undefined,
-    datePublished: ch.published_at ?? ch.created_at,
-    inLanguage: "en",
-  };
 
   return (
     <ReaderWrapper
@@ -86,7 +62,6 @@ export default async function ReadPage({ params }: ReadPageProps) {
       prevChapter={prev?.chapter_number ?? null}
       nextChapter={next?.chapter_number ?? null}
     >
-      <JsonLd data={jsonLd} />
       {/* TOP BAR */}
       <div
         style={{
@@ -98,7 +73,6 @@ export default async function ReadPage({ params }: ReadPageProps) {
           flexWrap: "wrap",
         }}
       >
-        {/* Breadcrumb */}
         <nav style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8rem", color: "#6b7280" }}>
           <Link href="/" style={{ color: "inherit", textDecoration: "none" }} className="hover:text-white">Home</Link>
           <span>/</span>
@@ -109,7 +83,6 @@ export default async function ReadPage({ params }: ReadPageProps) {
           <span style={{ color: "#e5e7eb" }}>Chapter {chapterNumber}</span>
         </nav>
 
-        {/* Chapter dropdown */}
         <ChapterDropdown
           novelSlug={slug}
           chapters={chapterList}
@@ -135,25 +108,14 @@ export default async function ReadPage({ params }: ReadPageProps) {
       {/* NAV TOP */}
       <ChapterNav slug={slug} prev={prev} next={next} />
 
-      {/* CONTENT */}
-      <article style={{ margin: "3rem 0" }}>
-        {paragraphs.map((para, i) => (
-          <p key={i} style={{ marginBottom: "1.25em" }}>
-            {para}
-          </p>
-        ))}
-      </article>
+      {/* CONTENT — fetched client-side with HMAC-gated API */}
+      <ChapterContent slug={slug} chapter={chapterNumber} token={token} currentUserId={user?.id ?? null} />
 
       {/* NAV BOTTOM */}
       <ChapterNav slug={slug} prev={prev} next={next} showAllChapters />
 
       {/* Floating settings button */}
       <ReaderSettings />
-
-      {/* Track reading progress for logged-in users */}
-      {user && ch && (
-        <ReadingTracker chapterId={ch.id} novelId={ch.novel_id} />
-      )}
     </ReaderWrapper>
   );
 }

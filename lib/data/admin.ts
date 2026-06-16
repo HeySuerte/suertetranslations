@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import type { Chapter, Genre, Novel } from "@/lib/database.types";
 
 export async function getAllNovels(): Promise<Novel[]> {
@@ -21,7 +22,7 @@ export async function getNovelById(id: string): Promise<Novel | null> {
 }
 
 export async function getAllChaptersForNovel(novelSlug: string): Promise<Chapter[]> {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { data } = await supabase
     .from("chapters")
     .select("*")
@@ -31,7 +32,7 @@ export async function getAllChaptersForNovel(novelSlug: string): Promise<Chapter
 }
 
 export async function getChapterById(id: string): Promise<Chapter | null> {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { data } = await supabase
     .from("chapters")
     .select("*")

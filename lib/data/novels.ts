@@ -45,12 +45,14 @@ export async function getNovelBySlug(slug: string): Promise<Novel | null> {
 }
 
 export async function searchNovels(query: string): Promise<Novel[]> {
+  const sanitized = query.slice(0, 100);
+  if (!sanitized.trim()) return [];
   const supabase = await createClient();
   const { data } = await supabase
     .from("novels")
     .select("*")
     .eq("is_published", true)
-    .ilike("title", `%${query}%`)
+    .ilike("title", `%${sanitized}%`)
     .order("title");
   return data ?? [];
 }

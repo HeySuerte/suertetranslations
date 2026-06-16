@@ -21,16 +21,67 @@ export default function NovelEditClient({ novel, genres, assignedGenreIds, updat
   const [genreList, setGenreList] = useState<Genre[]>(genres);
   const [saved, setSaved] = useState(false);
 
+  async function processImage(file: File): Promise<Blob> {
+    const MAX_W = 800;
+    const MAX_H = 1200;
+
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+
+        let { width, height } = img;
+        if (width > MAX_W || height > MAX_H) {
+          const ratio = Math.min(MAX_W / width, MAX_H / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error("Canvas toBlob failed"));
+          },
+          "image/webp",
+          0.85
+        );
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Failed to load image"));
+      };
+
+      img.src = objectUrl;
+    });
+  }
+
   async function handleUploadCover(file: File) {
     setUploading(true);
-    const supabase = createClient();
-    const ext = file.name.split(".").pop() ?? "jpg";
-    const fileName = `${novel.id}-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("covers").upload(fileName, file, { upsert: true });
-    if (error) { alert(error.message); setUploading(false); return; }
-    const { data } = supabase.storage.from("covers").getPublicUrl(fileName);
-    setCoverUrl(data.publicUrl);
-    setUploading(false);
+    try {
+      const webpBlob = await processImage(file);
+      const fileName = `${crypto.randomUUID()}.webp`;
+      const supabase = createClient();
+      const { error } = await supabase.storage.from("covers").upload(fileName, webpBlob, {
+        contentType: "image/webp",
+        upsert: true,
+      });
+      if (error) { alert(error.message); return; }
+      const { data } = supabase.storage.from("covers").getPublicUrl(fileName);
+      setCoverUrl(data.publicUrl);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
   }
 
   function toggleGenre(id: string) {

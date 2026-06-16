@@ -9,7 +9,7 @@ export default function ImportPage() {
   const [content, setContent] = useState("");
   const [preview, setPreview] = useState<ParsedChapter[] | null>(null);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
-  const [publish, setPublish] = useState(false);
+  const [publish, setPublish] = useState(true);
   const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [result, setResult] = useState<{ inserted: number; parseWarnings: string[] } | null>(null);
   const [errorMsg, setErrorMsg] = useState("");

@@ -9,12 +9,9 @@ import ChapterList from "@/components/novel/ChapterList";
 import BookmarkButton from "@/components/novel/BookmarkButton";
 import RatingWidget from "@/components/novel/RatingWidget";
 import CommentSection from "@/components/novel/CommentSection";
-import JsonLd from "@/components/seo/JsonLd";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://suertetranslations.com";
 
 export async function generateStaticParams() {
   const { createBuildClient } = await import("@/lib/supabase/build");
@@ -41,21 +38,7 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
   return {
     title: novel.title,
     description,
-    keywords: [novel.title, novel.author ?? "", novel.translator ?? "", "web novel", "translation"].filter(Boolean),
-    openGraph: {
-      type: "book",
-      title: novel.title,
-      description,
-      url: `${SITE_URL}/series/${slug}`,
-      images: novel.cover_url ? [{ url: novel.cover_url, alt: novel.title }] : [],
-      authors: novel.author ? [novel.author] : [],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: novel.title,
-      description,
-      images: novel.cover_url ? [novel.cover_url] : [],
-    },
+    robots: { index: false, follow: false, nosnippet: true },
   };
 }
 
@@ -92,21 +75,8 @@ export default async function SeriesPage({ params }: SeriesPageProps) {
     ? chapters.find((c) => c.chapter_number === continueChapter) ?? chapters[chapters.length - 1]
     : null;
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Book",
-    name: novel.title,
-    author: novel.author ? { "@type": "Person", name: novel.author } : undefined,
-    description: novel.description ?? undefined,
-    image: novel.cover_url ?? undefined,
-    url: `${SITE_URL}/series/${slug}`,
-    numberOfPages: chapters.length,
-    inLanguage: "en",
-  };
-
   return (
     <div className="max-w-5xl mx-auto px-6 py-12">
-      <JsonLd data={jsonLd} />
       {/* HERO */}
       <div className="flex flex-col md:flex-row gap-8 mb-12">
         <div className="shrink-0 w-48 mx-auto md:mx-0">

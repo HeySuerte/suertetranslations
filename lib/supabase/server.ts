@@ -10,20 +10,16 @@ export async function createClient() {
     {
       cookies: {
         getAll() {
-          const all = cookieStore.getAll();
-          console.log("[SERVER_CLIENT] getAll() →", all.map((c) => c.name));
-          return all;
+          return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
-          console.log("[SERVER_CLIENT] setAll() called with →", cookiesToSet.map((c) => c.name));
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
-              console.log("[SERVER_CLIENT] writing cookie →", name);
               cookieStore.set(name, value, options);
-              console.log("[SERVER_CLIENT] cookie write succeeded →", name);
             });
-          } catch (err) {
-            console.log("[SERVER_CLIENT] cookie write FAILED (server component context) →", cookiesToSet.map((c) => c.name), String(err));
+          } catch {
+            // setAll is called from server components where cookies() is read-only.
+            // Middleware handles the actual cookie writes for token rotation.
           }
         },
       },

@@ -9,6 +9,8 @@ interface CommentSectionProps {
   novelSlug: string;
   initialComments: Comment[];
   currentUserId: string | null;
+  chapterId?: string;
+  chapterNumber?: number;
 }
 
 export default function CommentSection({
@@ -16,6 +18,8 @@ export default function CommentSection({
   novelSlug,
   initialComments,
   currentUserId,
+  chapterId,
+  chapterNumber,
 }: CommentSectionProps) {
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [body, setBody] = useState("");
@@ -31,7 +35,7 @@ export default function CommentSection({
       id: crypto.randomUUID(),
       user_id: currentUserId ?? "",
       novel_id: novelId,
-      chapter_id: null,
+      chapter_id: chapterId ?? null,
       body: body.trim(),
       created_at: new Date().toISOString(),
       profiles: null,
@@ -42,7 +46,7 @@ export default function CommentSection({
 
     startTransition(async () => {
       try {
-        await addComment(novelId, novelSlug, body.trim());
+        await addComment(novelId, novelSlug, body.trim(), chapterId, chapterNumber);
       } catch (err) {
         setError((err as Error).message);
         setComments((prev) => prev.filter((c) => c.id !== optimistic.id));
@@ -53,7 +57,7 @@ export default function CommentSection({
   function handleDelete(commentId: string) {
     setComments((prev) => prev.filter((c) => c.id !== commentId));
     startTransition(async () => {
-      await deleteComment(commentId, novelSlug);
+      await deleteComment(commentId, novelSlug, chapterNumber);
     });
   }
 
