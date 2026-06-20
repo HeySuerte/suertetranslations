@@ -11,15 +11,20 @@ export interface FeedChapter {
 
 // Latest published chapters across all published novels, newest first.
 // Used exclusively by the public RSS feed (app/feed.xml/route.ts).
+//
+// Note: the live `chapters` table has no `created_at` column, despite it
+// being declared in supabase/migrations/0001_init.sql and lib/database.types.ts —
+// the production schema has drifted from the migration history. Do not
+// reference chapters.created_at here; use published_at only.
 export async function getLatestChaptersForFeed(limit = 50): Promise<FeedChapter[]> {
   const supabase = createServiceClient();
 
   const { data: chapters } = await supabase
     .from("chapters")
-    .select("id, novel_slug, chapter_number, title, published_at, created_at")
+    .select("id, novel_slug, chapter_number, title, published_at")
     .eq("is_published", true)
-    .order("published_at", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false })
+    .not("published_at", "is", null)
+    .order("published_at", { ascending: false })
     .limit(limit);
 
   if (!chapters || chapters.length === 0) return [];
@@ -41,6 +46,6 @@ export async function getLatestChaptersForFeed(limit = 50): Promise<FeedChapter[
       novel_title: titleBySlug.get(c.novel_slug)!,
       chapter_number: c.chapter_number,
       title: c.title,
-      published_at: c.published_at ?? c.created_at,
+      published_at: c.published_at!,
     }));
 }

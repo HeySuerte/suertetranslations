@@ -4,10 +4,13 @@ import { getLatestChaptersForFeed } from "@/lib/data/feed";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://suertetranslations.com";
 const SITE_NAME = "Suerte Translations";
 
-// Re-fetch and rebuild the feed at most once every 5 minutes. Novel Updates
-// polls periodically, so this keeps responses fast without hitting the DB
-// on every crawl while still surfacing new chapters quickly.
-export const revalidate = 300;
+// Force per-request execution. With only `revalidate` set and no dynamic
+// API usage, Next.js statically prerenders this route at build time and
+// serves that frozen snapshot forever — new chapters never appear because
+// the DB is never queried again. `force-dynamic` makes every request run
+// getLatestChaptersForFeed(); the Cache-Control header below still lets
+// Vercel's CDN cache the response for 5 minutes to limit DB load.
+export const dynamic = "force-dynamic";
 
 function escapeXml(value: string): string {
   return value
