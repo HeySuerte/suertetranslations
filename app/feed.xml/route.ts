@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getLatestChaptersForFeed } from "@/lib/data/feed";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://suertetranslations.com";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://suertetranslations.vercel.app";
 const SITE_NAME = "Suerte Translations";
 
 // Force per-request execution. With only `revalidate` set and no dynamic
