@@ -32,12 +32,13 @@ export async function GET() {
       const pubDate = new Date(ch.published_at).toUTCString();
       // Only emit a description when the chapter has its own distinct title
       const description = ch.title && ch.title !== title ? ch.title : "";
+      const guid = `${ch.novel_slug}-${ch.chapter_number}`;
 
       return [
         "    <item>",
         `      <title>${escapeXml(title)}</title>`,
         `      <link>${escapeXml(link)}</link>`,
-        `      <guid isPermaLink="true">${escapeXml(link)}</guid>`,
+        `      <guid isPermaLink="false">${guid}</guid>`,
         `      <pubDate>${pubDate}</pubDate>`,
         description ? `      <description>${escapeXml(description)}</description>` : "",
         "    </item>",
@@ -48,10 +49,11 @@ export async function GET() {
     .join("\n");
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>${escapeXml(SITE_NAME)}</title>
     <link>${SITE_URL}</link>
+    <atom:link href="${SITE_URL}/rss.xml" rel="self" type="application/rss+xml"/>
     <description>Latest chapter releases from ${escapeXml(SITE_NAME)}</description>
     <language>en-us</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
